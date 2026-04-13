@@ -1,0 +1,12 @@
+# Copy to terraform.tfvars (never commit secrets — only ARNs and IDs).
+
+aws_region               = "us-east-1"
+control_plane_url        = "https://app.eltpulse.dev"
+agent_token_secret_arn   = "arn:aws:secretsmanager:us-east-1:123456789012:secret:eltpulse-agent-token-xxxxx"
+ecs_cluster_arn          = "arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"
+subnet_ids               = ["subnet-aaa", "subnet-bbb"]
+security_group_ids       = ["sg-ccc"]
+execution_role_arn       = "arn:aws:iam::123456789012:role/ecsTaskExecutionRole"
+task_role_arn            = "arn:aws:iam::123456789012:role/ecsTaskRole"
+# desired_count = 1
+# agent_image   = "ghcr.io/eltpulsehq/agent@sha256:..."

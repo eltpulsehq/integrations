@@ -1,0 +1,23 @@
+# Optional: copy to .github/workflows/ in a repo that stores non-production smoke checks.
+name: Gateway smoke (manifest)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: GET /api/agent/manifest
+        env:
+          ELTPULSE_AGENT_TOKEN: ${{ secrets.ELTPULSE_AGENT_TOKEN }}
+          ELTPULSE_CONTROL_PLANE_URL: ${{ secrets.ELTPULSE_CONTROL_PLANE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "${ELTPULSE_AGENT_TOKEN:-}"
+          test -n "${ELTPULSE_CONTROL_PLANE_URL:-}"
+          BASE="${ELTPULSE_CONTROL_PLANE_URL%/}"
+          curl -sfS -H "Authorization: Bearer ${ELTPULSE_AGENT_TOKEN}" \
+            "${BASE}/api/agent/manifest" | head -c 2000
+          echo
+          echo "OK"

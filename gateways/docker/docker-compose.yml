@@ -1,0 +1,7 @@
+services:
+  gateway:
+    image: ghcr.io/eltpulsehq/agent:latest
+    container_name: eltpulse-gateway
+    restart: unless-stopped
+    env_file:
+      - .env

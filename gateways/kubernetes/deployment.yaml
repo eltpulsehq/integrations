@@ -1,0 +1,42 @@
+# eltPulse gateway — single replica. Replace Secret values via Sealed Secrets / ESO in production.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: eltpulse-gateway-env
+  labels:
+    app.kubernetes.io/name: eltpulse-gateway
+type: Opaque
+stringData:
+  ELTPULSE_AGENT_TOKEN: "REPLACE_ME"
+  ELTPULSE_CONTROL_PLANE_URL: "https://app.eltpulse.dev"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eltpulse-gateway
+  labels:
+    app.kubernetes.io/name: eltpulse-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eltpulse-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eltpulse-gateway
+    spec:
+      containers:
+        - name: gateway
+          image: ghcr.io/eltpulsehq/agent:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: eltpulse-gateway-env
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi

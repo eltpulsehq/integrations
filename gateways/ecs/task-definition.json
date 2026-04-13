@@ -1,0 +1,36 @@
+{
+  "family": "eltpulse-gateway",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::REPLACE_ACCOUNT_ID:role/REPLACE_ECS_EXECUTION_ROLE",
+  "taskRoleArn": "arn:aws:iam::REPLACE_ACCOUNT_ID:role/REPLACE_ECS_TASK_ROLE",
+  "containerDefinitions": [
+    {
+      "name": "gateway",
+      "image": "ghcr.io/eltpulsehq/agent:latest",
+      "essential": true,
+      "environment": [
+        {
+          "name": "ELTPULSE_CONTROL_PLANE_URL",
+          "value": "https://app.eltpulse.dev"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "ELTPULSE_AGENT_TOKEN",
+          "valueFrom": "arn:aws:secretsmanager:REPLACE_REGION:REPLACE_ACCOUNT_ID:secret:REPLACE_SECRET_NAME"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/eltpulse-gateway",
+          "awslogs-region": "REPLACE_REGION",
+          "awslogs-stream-prefix": "gateway"
+        }
+      }
+    }
+  ]
+}
