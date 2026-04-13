@@ -1,10 +1,10 @@
 # eltPulse integrations
 
-Everything in this repo is **for customers**: the **gateway agent** source, runnable deployment manifests, and CI examples.
+Everything in this repo is **for customers**: the **gateway** source, runnable deployment manifests, and CI examples.
 
-**Gateway source:** [`agent/`](agent/) (Node — polls manifest/runs, heartbeats; optional stub run completion for demos).
+**Gateway source:** [`gateway/`](gateway/) (Node — polls manifest/runs, heartbeats; optional stub run completion for demos).
 
-**Container image:** **`ghcr.io/eltpulsehq/agent:latest`** — built from `agent/Dockerfile` by **[`.github/workflows/publish-ghcr.yml`](.github/workflows/publish-ghcr.yml)** on pushes to `main` (when `agent/**` changes). Package name is **`agent`** under org **`eltpulsehq`** (not the `integrations` repo name).
+**Container image:** **`ghcr.io/eltpulsehq/gateway:latest`** — built from `gateway/Dockerfile` by **[`.github/workflows/publish-ghcr.yml`](.github/workflows/publish-ghcr.yml)** on pushes to `main`. GHCR package name is **`gateway`** under org **`eltpulsehq`**.
 
 **Deployments:** [`gateways/`](gateways/) — Docker Compose, Kubernetes, ECS, Terraform.
 
@@ -14,7 +14,7 @@ Everything in this repo is **for customers**: the **gateway agent** source, runn
 
 | Target | Path |
 |--------|------|
-| **Local agent (laptop / dev)** | [`gateways/local`](gateways/local) → Docker [`gateways/docker`](gateways/docker) or run [`agent/`](agent/) with Node |
+| **Local gateway (laptop / dev)** | [`gateways/local`](gateways/local) → Docker [`gateways/docker`](gateways/docker) or run [`gateway/`](gateway/) with Node |
 | **Docker Compose / single host** | [`gateways/docker`](gateways/docker) |
 | **Kubernetes** | [`gateways/kubernetes`](gateways/kubernetes) |
 | **AWS ECS (Fargate) — JSON task definition** | [`gateways/ecs`](gateways/ecs) |
@@ -22,27 +22,37 @@ Everything in this repo is **for customers**: the **gateway agent** source, runn
 
 All paths assume **outbound HTTPS only** to your eltPulse app (`ELTPULSE_CONTROL_PLANE_URL`). No inbound rules from eltPulse to your network.
 
+### Control plane HTTP API (paths unchanged)
+
+The gateway uses Bearer auth against:
+
+| Route | Purpose |
+|-------|---------|
+| `GET /api/agent/manifest` | Poll intervals and workload snapshot |
+| `GET /api/agent/runs` | Pending runs |
+| `GET /api/agent/connections` | Connection secrets |
+| `POST /api/agent/heartbeat` | Liveness |
+| `PATCH /api/agent/runs/:id` | Run progress |
+
 ### Required environment
 
 | Variable | Meaning |
 |----------|---------|
-| `ELTPULSE_AGENT_TOKEN` | Bearer secret from the eltPulse app (**Gateway** page — named connector). Never commit real values. |
+| `ELTPULSE_AGENT_TOKEN` | Bearer secret from the eltPulse app (**Gateway** page — named connector). Variable name matches compose samples. |
 | `ELTPULSE_CONTROL_PLANE_URL` | Origin of the app, e.g. `https://app.eltpulse.dev` |
-
-Stable agent API: `GET /api/agent/manifest`, `GET /api/agent/runs`, `GET /api/agent/connections`, `POST /api/agent/heartbeat`, `PATCH /api/agent/runs/:id`.
 
 ---
 
 ## GHCR publish (GitHub)
 
-1. Ensure **Actions** can write packages: repo **Settings → Actions → General → Workflow permissions → Read and write**.
-2. Merge to **`main`** (or run **Actions → Publish gateway image to GHCR** manually). First run creates **`ghcr.io/eltpulsehq/agent`**.
+1. **Settings → Actions → General → Workflow permissions → Read and write**.
+2. Merge to **`main`** or run **Actions → Publish gateway image to GHCR** manually. First run creates **`ghcr.io/eltpulsehq/gateway`**.
 3. Set the package to **Public** if you want unauthenticated `docker pull`.
 
 Verify:
 
 ```bash
-docker pull ghcr.io/eltpulsehq/agent:latest
+docker pull ghcr.io/eltpulsehq/gateway:latest
 ```
 
 ---
@@ -51,7 +61,7 @@ docker pull ghcr.io/eltpulsehq/agent:latest
 
 | Path | Purpose |
 |------|---------|
-| [`ci/github-actions`](ci/github-actions) | Example: `GET /api/agent/manifest` smoke test with repo secrets. |
+| [`ci/github-actions`](ci/github-actions) | Example: control-plane smoke with repo secrets. |
 
 ---
 

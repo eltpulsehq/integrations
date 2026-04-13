@@ -4,10 +4,10 @@ variable "name_prefix" {
   default     = "eltpulse-gateway"
 }
 
-variable "agent_image" {
+variable "gateway_image" {
   type        = string
   description = "Gateway container image (pin digest in production)"
-  default     = "ghcr.io/eltpulsehq/agent:latest"
+  default     = "ghcr.io/eltpulsehq/gateway:latest"
 }
 
 variable "control_plane_url" {

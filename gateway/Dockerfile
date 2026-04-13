@@ -1,4 +1,4 @@
-# eltPulse gateway — published as ghcr.io/eltpulsehq/agent:latest from this repo.
+# eltPulse gateway — published as ghcr.io/eltpulsehq/gateway:latest from this repo.
 FROM node:22-alpine
 
 WORKDIR /app

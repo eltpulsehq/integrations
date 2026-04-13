@@ -2,12 +2,12 @@
  * Minimal eltPulse gateway (Node 20+). No npm dependencies — uses global fetch.
  *
  * Env (required):
- *   ELTPULSE_AGENT_TOKEN
- *   ELTPULSE_CONTROL_PLANE_URL   e.g. https://app.eltpulse.dev
+ *   ELTPULSE_AGENT_TOKEN          Bearer secret from the app Gateway page (name kept for compatibility with docs / compose).
+ *   ELTPULSE_CONTROL_PLANE_URL    e.g. https://app.eltpulse.dev
  *
  * Env (optional):
- *   ELTPULSE_EXECUTE_RUNS=1      When set, claims pending runs and PATCHes them to succeeded (STUB — no real ELT).
- *                                Default off so connecting to prod never mutates runs by accident.
+ *   ELTPULSE_EXECUTE_RUNS=1       When set, claims pending runs and PATCHes them to succeeded (STUB — no real ELT).
+ *                                 Default off so connecting to prod never mutates runs by accident.
  */
 
 const baseUrl = (process.env.ELTPULSE_CONTROL_PLANE_URL || "").replace(/\/$/, "");
@@ -70,7 +70,7 @@ async function sendHeartbeat() {
     method: "POST",
     json: {
       version: "eltpulse-gateway/0.1.0",
-      labels: { runtime: "node", package: "integrations/agent" },
+      labels: { runtime: "node", package: "integrations/gateway" },
     },
   });
 }
@@ -91,7 +91,8 @@ async function pollRunsOnce() {
         status: "running",
         appendLog: {
           level: "info",
-          message: "eltpulse-gateway (integrations stub): marking running — no workload executed unless you replace this agent.",
+          message:
+            "eltpulse-gateway (integrations stub): marking running — no workload executed unless you replace this gateway process.",
         },
       },
     });

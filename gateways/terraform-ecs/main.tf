@@ -24,7 +24,7 @@ resource "aws_ecs_task_definition" "gateway" {
   container_definitions = jsonencode([
     {
       name      = local.container_name
-      image     = var.agent_image
+      image     = var.gateway_image
       essential = true
       environment = [
         { name = "ELTPULSE_CONTROL_PLANE_URL", value = var.control_plane_url }

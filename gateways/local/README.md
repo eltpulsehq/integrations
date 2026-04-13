@@ -1,16 +1,16 @@
-# Local agent (laptop / dev machine)
+# Local gateway (laptop / dev machine)
 
-The gateway agent is the **same binary** everywhere. On your own machine you usually run it as a **container** (simplest) or build **from source** when you are developing the agent itself.
+The **gateway** is the same process everywhere. On your machine you usually run it as a **container** (simplest) or **from source** when you are developing the gateway itself.
 
 ## Option A — Docker (recommended for local)
 
 Use **[`../docker`](../docker/)**: `docker compose` with `.env` holding `ELTPULSE_AGENT_TOKEN` and `ELTPULSE_CONTROL_PLANE_URL`. No Kubernetes or cloud required.
 
-That is the supported “local agent” path for eltPulse customers: one long-lived container with outbound HTTPS to the app.
+That is the supported local path for eltPulse customers: one long-lived container with outbound HTTPS to the app.
 
-## Option B — Run from source (agent developers)
+## Option B — Run from source (gateway developers)
 
-Gateway source lives in **[`../agent`](../agent/)** in this repo (Node, `src/index.mjs`). From `agent/`:
+Gateway source lives in **[`../gateway`](../gateway/)** in this repo (Node, `src/index.mjs`). From `gateway/`:
 
 ```bash
 export ELTPULSE_AGENT_TOKEN="…"
@@ -18,7 +18,7 @@ export ELTPULSE_CONTROL_PLANE_URL="https://app.eltpulse.dev"
 node src/index.mjs
 ```
 
-Use the **same** environment variables as Docker so the control plane sees a normal gateway.
+Use the **same** environment variables as Docker so the control plane authenticates the same way.
 
 ## Option C — air-gapped / jump host
 
@@ -33,4 +33,4 @@ curl -sfS -H "Authorization: Bearer $ELTPULSE_AGENT_TOKEN" \
   "${ELTPULSE_CONTROL_PLANE_URL%/}/api/agent/manifest" | head
 ```
 
-If that succeeds, the local (or any) agent process using the same token can authenticate the same way.
+If that succeeds, the gateway process using the same token can authenticate the same way.

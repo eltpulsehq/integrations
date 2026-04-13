@@ -9,7 +9,7 @@
   "containerDefinitions": [
     {
       "name": "gateway",
-      "image": "ghcr.io/eltpulsehq/agent:latest",
+      "image": "ghcr.io/eltpulsehq/gateway:latest",
       "essential": true,
       "environment": [
         {

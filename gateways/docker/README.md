@@ -19,7 +19,7 @@ docker compose up -d
 docker run -d --name eltpulse-gateway --restart unless-stopped \
   -e ELTPULSE_AGENT_TOKEN="$ELTPULSE_AGENT_TOKEN" \
   -e ELTPULSE_CONTROL_PLANE_URL="$ELTPULSE_CONTROL_PLANE_URL" \
-  ghcr.io/eltpulsehq/agent:latest
+  ghcr.io/eltpulsehq/gateway:latest
 ```
 
 ## Egress

@@ -23,4 +23,4 @@ terraform apply
 
 ## Variables
 
-See [`variables.tf`](variables.tf). Image defaults to `ghcr.io/eltpulsehq/agent:latest`; override with a digest-pinned URI in production.
+See [`variables.tf`](variables.tf). Image defaults to `ghcr.io/eltpulsehq/gateway:latest`; override with a digest-pinned URI in production.

@@ -8,7 +8,7 @@ jobs:
   manifest:
     runs-on: ubuntu-latest
     steps:
-      - name: GET /api/agent/manifest
+      - name: GET manifest (gateway → control plane)
         env:
           ELTPULSE_AGENT_TOKEN: ${{ secrets.ELTPULSE_AGENT_TOKEN }}
           ELTPULSE_CONTROL_PLANE_URL: ${{ secrets.ELTPULSE_CONTROL_PLANE_URL }}

@@ -9,4 +9,4 @@ security_group_ids       = ["sg-ccc"]
 execution_role_arn       = "arn:aws:iam::123456789012:role/ecsTaskExecutionRole"
 task_role_arn            = "arn:aws:iam::123456789012:role/ecsTaskRole"
 # desired_count = 1
-# agent_image   = "ghcr.io/eltpulsehq/agent@sha256:..."
+# gateway_image = "ghcr.io/eltpulsehq/gateway@sha256:..."
