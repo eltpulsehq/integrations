@@ -1,0 +1,10 @@
+{
+  "name": "eltpulse-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimal eltPulse gateway — polls manifest/runs, posts heartbeats. Optional stub run completion for demos.",
+  "engines": {
+    "node": ">=20"
+  }
+}

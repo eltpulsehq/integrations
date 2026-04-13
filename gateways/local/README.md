@@ -10,9 +10,15 @@ That is the supported “local agent” path for eltPulse customers: one long-li
 
 ## Option B — Run from source (agent developers)
 
-If you are changing the agent code, clone and run from **[`eltpulsehq/agent`](https://github.com/eltpulsehq/agent)** (language and entrypoint are defined there—Go, Python, etc., depending on that repo).
+Gateway source lives in **[`../agent`](../agent/)** in this repo (Node, `src/index.mjs`). From `agent/`:
 
-Use the **same** environment variables as Docker so the control plane sees a normal gateway: `ELTPULSE_AGENT_TOKEN`, `ELTPULSE_CONTROL_PLANE_URL`.
+```bash
+export ELTPULSE_AGENT_TOKEN="…"
+export ELTPULSE_CONTROL_PLANE_URL="https://app.eltpulse.dev"
+node src/index.mjs
+```
+
+Use the **same** environment variables as Docker so the control plane sees a normal gateway.
 
 ## Option C — air-gapped / jump host
 

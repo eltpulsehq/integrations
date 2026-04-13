@@ -1,6 +1,10 @@
 services:
   gateway:
     image: ghcr.io/eltpulsehq/agent:latest
+    # Build from source in this repo instead of GHCR:
+    # build:
+    #   context: ../../agent
+    #   dockerfile: Dockerfile
     container_name: eltpulse-gateway
     restart: unless-stopped
     env_file:

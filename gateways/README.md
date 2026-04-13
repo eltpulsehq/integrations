@@ -10,4 +10,4 @@ Pick a target:
 - **[ecs](ecs/)** — Fargate-ready `task-definition.json` (wire Secrets Manager ARNs in AWS).
 - **[terraform-ecs](terraform-ecs/)** — Minimal ECS task + service (variables for VPC, roles, secrets).
 
-Image: `ghcr.io/eltpulsehq/agent:latest` (pin by digest in production).
+Image: **`ghcr.io/eltpulsehq/agent:latest`** — built from [`../agent`](../agent) in this repo (pin by digest in production).
