@@ -8,7 +8,7 @@ Everything in this repo is **for customers**: runnable gateway deployments, CI e
 
 ### Container image on GHCR
 
-The docs and manifests assume **`ghcr.io/eltpulsehq/agent:latest`** is published from the **agent** repository (typically GitHub Actions → GHCR on `main` or tags). This integrations repo does **not** build that image.
+The docs and manifests assume **`ghcr.io/eltpulsehq/agent:latest`** is published from the **agent** repository. A ready-to-copy **GitHub Actions** workflow lives in **[`ci/agent-repo`](ci/agent-repo)** — copy it into `eltpulsehq/agent` and merge to `main` to publish (see that folder’s README for org settings and public package visibility).
 
 **Check from your machine:**
 
@@ -50,7 +50,8 @@ Stable agent API: `GET /api/agent/manifest`, `GET /api/agent/runs`, `GET /api/ag
 
 | Path | Purpose |
 |------|---------|
-| [`ci/github-actions`](ci/github-actions) | Example workflow: call `/api/agent/manifest` with repo secrets (smoke test). |
+| [`ci/agent-repo`](ci/agent-repo) | **Publish** `ghcr.io/eltpulsehq/agent:latest` from `eltpulsehq/agent` (copy `.github/workflows/publish-ghcr.yml` + README). |
+| [`ci/github-actions`](ci/github-actions) | Example: call `/api/agent/manifest` with repo secrets (smoke test). |
 
 ---
 
