@@ -2,9 +2,24 @@
 
 Everything in this repo is **for customers**: runnable gateway deployments, CI examples, and small glue we maintain alongside the product.
 
-**Gateway implementation (code):** [`eltpulsehq/agent`](https://github.com/eltpulsehq/agent) — container `ghcr.io/eltpulsehq/agent:latest`.
+**Gateway implementation (code):** [`eltpulsehq/agent`](https://github.com/eltpulsehq/agent) — intended container image **`ghcr.io/eltpulsehq/agent:latest`**.
 
-**How to run that container** (Docker, Kubernetes, ECS, Terraform): this repo under **`gateways/`**.
+**How to run that container** (local Docker, Kubernetes, ECS, Terraform): this repo under **`gateways/`**.
+
+### Container image on GHCR
+
+The docs and manifests assume **`ghcr.io/eltpulsehq/agent:latest`** is published from the **agent** repository (typically GitHub Actions → GHCR on `main` or tags). This integrations repo does **not** build that image.
+
+**Check from your machine:**
+
+```bash
+docker pull ghcr.io/eltpulsehq/agent:latest
+```
+
+- If the pull succeeds, the image is published (and public, or you are logged in with a PAT that has `read:packages`).
+- If you get **manifest unknown** or **denied**, the package may not exist yet, may only be **private** without auth, or CI may not be pushing—fix in [`eltpulsehq/agent`](https://github.com/eltpulsehq/agent) (workflow + package visibility).
+
+Until GHCR is live, you can still run a **local agent** by building the image from the agent repo (`docker build …`) and pointing Compose/Kubernetes at that local tag.
 
 ---
 
@@ -12,7 +27,8 @@ Everything in this repo is **for customers**: runnable gateway deployments, CI e
 
 | Target | Path |
 |--------|------|
-| **Local / VM / Docker Compose** | [`gateways/docker`](gateways/docker) |
+| **Local agent (laptop / dev)** | [`gateways/local`](gateways/local) → use Docker under [`gateways/docker`](gateways/docker) or build from agent source |
+| **Docker Compose / single host** | [`gateways/docker`](gateways/docker) |
 | **Kubernetes** | [`gateways/kubernetes`](gateways/kubernetes) |
 | **AWS ECS (Fargate) — JSON task definition** | [`gateways/ecs`](gateways/ecs) |
 | **AWS ECS — Terraform module** | [`gateways/terraform-ecs`](gateways/terraform-ecs) |
