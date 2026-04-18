@@ -8,6 +8,14 @@
  * Env (optional):
  *   ELTPULSE_EXECUTE_RUNS=1       When set, claims pending runs and PATCHes them to succeeded (STUB — no real ELT).
  *                                 Default off so connecting to prod never mutates runs by accident.
+ *
+ * Cancel protocol:
+ *   The control plane sets a run's status to "cancelled" when a user clicks Cancel in the UI.
+ *   The gateway checks for cancellation at two points:
+ *     1. GET /api/agent/runs/:id before claiming — skips runs already cancelled while pending.
+ *     2. PATCH /api/agent/runs/:id returns { cancel: true } if the run was cancelled server-side
+ *        while the gateway was executing. Real workload implementations should abort their
+ *        subprocess/process when they receive cancel: true from any PATCH response.
  */
 
 const baseUrl = (process.env.ELTPULSE_CONTROL_PLANE_URL || "").replace(/\/$/, "");
@@ -85,7 +93,20 @@ async function pollRunsOnce() {
   for (const run of runs) {
     const id = run.id;
     if (!id) continue;
-    await api(`/api/agent/runs/${id}`, {
+
+    // Check for cancellation before claiming — the user may have cancelled while
+    // the run was sitting in the pending queue.
+    const check = await api(`/api/agent/runs/${id}`);
+    if (check.cancel) {
+      console.log(`[eltpulse-gateway] run ${id} cancelled before execution — skipping`);
+      continue;
+    }
+
+    // Claim the run. The PATCH response includes { cancel: true } if the run was
+    // cancelled server-side between our check and now. Real workload implementations
+    // should also check this flag after every mid-run progress PATCH and abort their
+    // subprocess if it's set.
+    const claimed = await api(`/api/agent/runs/${id}`, {
       method: "PATCH",
       json: {
         status: "running",
@@ -96,6 +117,20 @@ async function pollRunsOnce() {
         },
       },
     });
+    if (claimed.cancel) {
+      console.log(`[eltpulse-gateway] run ${id} cancelled during claim — aborting`);
+      continue;
+    }
+
+    // ── Real workload goes here ──────────────────────────────────────────────
+    // Replace this stub with your actual subprocess execution. After each
+    // progress PATCH, check the response for { cancel: true } and terminate
+    // your subprocess if set, e.g.:
+    //
+    //   const progress = await api(`/api/agent/runs/${id}`, { method: "PATCH", json: { ... } });
+    //   if (progress.cancel) { proc.kill(); return; }
+    // ────────────────────────────────────────────────────────────────────────
+
     await api(`/api/agent/runs/${id}`, {
       method: "PATCH",
       json: {

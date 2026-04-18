@@ -30,9 +30,17 @@ The gateway uses Bearer auth against:
 |-------|---------|
 | `GET /api/agent/manifest` | Poll intervals and workload snapshot |
 | `GET /api/agent/runs` | Pending runs |
+| `GET /api/agent/runs/:id` | Single run status — check `cancel: true` before or during execution |
 | `GET /api/agent/connections` | Connection secrets |
 | `POST /api/agent/heartbeat` | Liveness |
-| `PATCH /api/agent/runs/:id` | Run progress |
+| `PATCH /api/agent/runs/:id` | Run progress — response includes `cancel: true` if user cancelled server-side |
+
+### Cancel protocol
+
+When a user clicks **Cancel** in the eltPulse UI, the run's status is set to `cancelled` on the control plane. The gateway detects this at two points:
+
+1. **Before execution** — `GET /api/agent/runs/:id` is called before claiming a pending run. If `cancel: true`, the run is skipped entirely.
+2. **During execution** — every `PATCH /api/agent/runs/:id` response includes `cancel: true` when the run has been cancelled. Real workload implementations should terminate their subprocess and stop sending further updates when they receive this flag.
 
 ### Required environment
 
