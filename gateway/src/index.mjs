@@ -36,6 +36,9 @@ const executeRuns = ["1", "true", "yes"].includes(
 const workDir = process.env.ELTPULSE_WORK_DIR || join(tmpdir(), "eltpulse");
 const LOG_BATCH_LINES = Math.max(1, Number(process.env.ELTPULSE_LOG_BATCH_LINES ?? 20) || 20);
 const LOG_BATCH_MS = Math.max(500, Number(process.env.ELTPULSE_LOG_BATCH_MS ?? 3000) || 3000);
+// Max concurrent runs this replica will execute simultaneously.
+// Scale OUT by adding replicas rather than raising this too high.
+const MAX_CONCURRENT_RUNS = Math.max(1, Number(process.env.ELTPULSE_MAX_CONCURRENT_RUNS ?? 4) || 4);
 
 if (!baseUrl || !token) {
   console.error("Missing ELTPULSE_CONTROL_PLANE_URL or ELTPULSE_AGENT_TOKEN");
@@ -302,14 +305,26 @@ async function executeRun(run, connEnv) {
 
 // ── Poll loop ──────────────────────────────────────────────────────────────────
 
-// Track runs currently being executed so we don't pick them up again on the next poll.
+// Track runs currently being executed so we don't double-claim on the next poll.
 const activeRunIds = new Set();
 
+// Set to true when a SIGTERM is received — stops claiming new runs so the
+// replica drains gracefully before the container is replaced.
+let draining = false;
+
 async function pollRunsOnce() {
-  const data = await api("/api/agent/runs?status=pending&limit=5");
+  if (draining) return; // don't pick up new work while draining
+
+  const available = MAX_CONCURRENT_RUNS - activeRunIds.size;
+  if (available <= 0) {
+    console.log(`[eltpulse-gateway] at capacity (${activeRunIds.size}/${MAX_CONCURRENT_RUNS}) — skipping poll`);
+    return;
+  }
+
+  const data = await api(`/api/agent/runs?status=pending&limit=${available}`);
   const runs = Array.isArray(data.runs) ? data.runs : [];
   if (runs.length === 0) return;
-  console.log(`[eltpulse-gateway] pending runs: ${runs.length}`);
+  console.log(`[eltpulse-gateway] pending runs: ${runs.length} (capacity: ${available}/${MAX_CONCURRENT_RUNS})`);
   if (!executeRuns) return;
 
   // Fetch connection secrets once per poll cycle (shared across all runs this batch)
@@ -330,15 +345,28 @@ async function pollRunsOnce() {
       continue;
     }
 
-    // Claim the run. The PATCH response includes { cancel: true } if the run was
-    // cancelled server-side between our pre-check and the claim.
-    const claimed = await api(`/api/agent/runs/${id}`, {
-      method: "PATCH",
-      json: {
-        status: "running",
-        appendLog: { level: "info", message: "eltpulse-gateway: run claimed, starting execution" },
-      },
-    });
+    // Claim the run atomically. The server uses an updateMany with status=pending
+    // guard — if another replica claimed it first, we get a 409 and skip it.
+    // The PATCH response also includes { cancel: true } if cancelled between our
+    // pre-check and the claim.
+    let claimed;
+    try {
+      claimed = await api(`/api/agent/runs/${id}`, {
+        method: "PATCH",
+        json: {
+          status: "running",
+          appendLog: { level: "info", message: "eltpulse-gateway: run claimed, starting execution" },
+        },
+      });
+    } catch (err) {
+      if (err.detail?.error?.includes("Already claimed")) {
+        console.log(`[eltpulse-gateway] run ${id} claimed by another replica — skipping`);
+      } else {
+        console.error(`[eltpulse-gateway] failed to claim run ${id}:`, err.message || err);
+      }
+      continue;
+    }
+
     if (claimed.cancel) {
       console.log(`[eltpulse-gateway] run ${id} cancelled during claim — aborting`);
       continue;
@@ -399,3 +427,30 @@ scheduleLoop().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
+// ── Graceful drain on SIGTERM / SIGINT ─────────────────────────────────────────
+// Kubernetes sends SIGTERM before killing a pod. We stop claiming new runs and
+// wait for any in-flight executions to finish (up to DRAIN_TIMEOUT_MS) before
+// exiting, so runs aren't left stuck in "running" status when a replica is replaced.
+const DRAIN_TIMEOUT_MS = Math.max(5000, Number(process.env.ELTPULSE_DRAIN_TIMEOUT_MS ?? 30000) || 30000);
+
+async function gracefulShutdown(signal) {
+  if (draining) return;
+  draining = true;
+  console.log(`[eltpulse-gateway] ${signal} received — draining (${activeRunIds.size} active runs, timeout ${DRAIN_TIMEOUT_MS}ms)`);
+
+  const deadline = Date.now() + DRAIN_TIMEOUT_MS;
+  while (activeRunIds.size > 0 && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 500));
+  }
+
+  if (activeRunIds.size > 0) {
+    console.warn(`[eltpulse-gateway] drain timeout — ${activeRunIds.size} run(s) still active, exiting anyway`);
+  } else {
+    console.log("[eltpulse-gateway] all runs drained, exiting cleanly");
+  }
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => { gracefulShutdown("SIGTERM").catch(() => process.exit(1)); });
+process.on("SIGINT",  () => { gracefulShutdown("SIGINT").catch(() => process.exit(1)); });

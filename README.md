@@ -57,6 +57,45 @@ When a user clicks **Cancel** in the eltPulse UI, the run's status is set to `ca
 | `ELTPULSE_WORK_DIR` | `/tmp/eltpulse` | Directory for temporary pipeline files written before each run. |
 | `ELTPULSE_LOG_BATCH_LINES` | `20` | Number of output lines to buffer before flushing a progress PATCH. |
 | `ELTPULSE_LOG_BATCH_MS` | `3000` | Max milliseconds to hold a log batch before flushing, regardless of line count. |
+| `ELTPULSE_MAX_CONCURRENT_RUNS` | `4` | Max runs executing simultaneously per replica. Scale out with more replicas rather than raising this high. |
+| `ELTPULSE_DRAIN_TIMEOUT_MS` | `30000` | How long (ms) to wait for in-flight runs to finish after SIGTERM before force-exiting. |
+
+### Scaling out (multiple replicas)
+
+The gateway is stateless — you can run as many replicas as you need. The control plane uses an **atomic claim** (`updateMany` with a `status=pending` guard) so two replicas racing to claim the same run produce exactly one winner; the other gets a 409 and skips that run. No distributed lock or coordinator needed.
+
+**Recommended approach:**
+
+| Scenario | Configuration |
+|----------|--------------|
+| Low volume | 1 replica, `ELTPULSE_MAX_CONCURRENT_RUNS=4` |
+| Medium volume | 2–4 replicas, default concurrency |
+| High volume / burst | HPA on CPU/memory, or KEDA scaled on pending run count |
+| Resiliency only | 2 replicas in different AZs, default concurrency |
+
+**Kubernetes HPA example** (scale on CPU):
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: eltpulse-gateway
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: eltpulse-gateway
+  minReplicas: 1
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+```
+
+**Graceful shutdown:** Kubernetes sends `SIGTERM` before replacing a pod. The gateway stops claiming new runs and waits up to `ELTPULSE_DRAIN_TIMEOUT_MS` for in-flight executions to finish before exiting, so runs are never left stuck in `running` status during a rolling deploy or scale-down.
 
 ### How run execution works
 
