@@ -46,8 +46,35 @@ When a user clicks **Cancel** in the eltPulse UI, the run's status is set to `ca
 
 | Variable | Meaning |
 |----------|---------|
-| `ELTPULSE_AGENT_TOKEN` | Bearer secret from the eltPulse app (**Gateway** page — named connector). Variable name matches compose samples. |
+| `ELTPULSE_AGENT_TOKEN` | Bearer secret from the eltPulse app (**Gateway** page — named connector). |
 | `ELTPULSE_CONTROL_PLANE_URL` | Origin of the app, e.g. `https://app.eltpulse.dev` |
+
+### Optional environment
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `ELTPULSE_EXECUTE_RUNS` | `""` (off) | Set to `1` to enable actual run execution. Off by default so the gateway never mutates runs when first connected. |
+| `ELTPULSE_WORK_DIR` | `/tmp/eltpulse` | Directory for temporary pipeline files written before each run. |
+| `ELTPULSE_LOG_BATCH_LINES` | `20` | Number of output lines to buffer before flushing a progress PATCH. |
+| `ELTPULSE_LOG_BATCH_MS` | `3000` | Max milliseconds to hold a log batch before flushing, regardless of line count. |
+
+### How run execution works
+
+When `ELTPULSE_EXECUTE_RUNS=1` the gateway:
+
+1. **Polls** `GET /api/agent/runs?status=pending` on the interval from the manifest.
+2. **Checks cancel** via `GET /api/agent/runs/:id` — skips runs cancelled before execution starts.
+3. **Claims** the run with `PATCH status=running`.
+4. **Fetches connection secrets** from `GET /api/agent/connections` and builds an env map.
+5. **Writes pipeline files** to a temp directory:
+   - `sling` pipelines → writes `replication.yaml`, runs `sling run --replication replication.yaml`
+   - `dlt` pipelines → writes `pipeline.py`, runs `python3 pipeline.py`
+6. **Streams stdout/stderr** back as batched `PATCH appendLog` calls while the process runs.
+7. **Checks `cancel: true`** on every PATCH response — sends `SIGTERM` (then `SIGKILL` after 5 s) to the subprocess if set.
+8. **Finalises** the run with `status=succeeded` or `status=failed` based on exit code.
+9. **Cleans up** the temp directory.
+
+Connection secrets stored in **Connections** are injected as environment variables automatically — the pipeline code reads them by name (e.g. `GITHUB_TOKEN`, `SNOWFLAKE_ACCOUNT`).
 
 ---
 
