@@ -15,6 +15,34 @@
         {
           "name": "ELTPULSE_CONTROL_PLANE_URL",
           "value": "https://app.eltpulse.dev"
+        },
+        {
+          "name": "ELTPULSE_RUNNER",
+          "value": "ecs"
+        },
+        {
+          "name": "ELTPULSE_EXECUTE_RUNS",
+          "value": "1"
+        },
+        {
+          "name": "ELTPULSE_WORKER_IMAGE",
+          "value": "ghcr.io/eltpulsehq/gateway-worker:latest"
+        },
+        {
+          "name": "ELTPULSE_ECS_CLUSTER",
+          "value": "REPLACE_CLUSTER_ARN_OR_NAME"
+        },
+        {
+          "name": "ELTPULSE_ECS_TASK_DEFINITION",
+          "value": "REPLACE_WORKER_TASK_DEFINITION"
+        },
+        {
+          "name": "ELTPULSE_ECS_SUBNETS",
+          "value": "REPLACE_SUBNET_ID_1,REPLACE_SUBNET_ID_2"
+        },
+        {
+          "name": "AWS_REGION",
+          "value": "REPLACE_REGION"
         }
       ],
       "secrets": [

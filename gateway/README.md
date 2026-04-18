@@ -97,9 +97,9 @@ See [`../gateways/ecs/`](../gateways/ecs/) and [`../gateways/terraform-ecs/`](..
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ELTPULSE_EXECUTE_RUNS` | `""` (off) | Set to `1` to enable run execution. Off by default so connecting to production never mutates runs accidentally. |
-| `ELTPULSE_RUNNER` | `local` | Which runner to use: `local`, `docker`, `kubernetes`, or `ecs`. |
-| `ELTPULSE_MAX_CONCURRENT_RUNS` | `4` | Max runs the gateway will launch simultaneously. For docker/kubernetes/ecs this caps how many jobs are in-flight at once — the compute itself scales independently. |
+| `ELTPULSE_MAX_CONCURRENT_RUNS` | `4` | Max runs the gateway will launch simultaneously. For docker/kubernetes/ecs this caps how many jobs are in-flight at once — the actual compute scales independently. |
 | `ELTPULSE_DRAIN_TIMEOUT_MS` | `30000` | Grace period (ms) after SIGTERM before force-exit. Lets in-flight runs finish during rolling deploys. |
+| `ELTPULSE_RUNNER` | `local` | **Set automatically by the deployment manifest** — you don't configure this. `local` for laptop/Docker Compose, `docker` for the docker runner, `kubernetes` for K8s, `ecs` for Fargate. Only set this manually if you're building a custom deployment. |
 
 ### Worker image
 

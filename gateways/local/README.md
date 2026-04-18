@@ -15,8 +15,11 @@ Gateway source lives in **[`../gateway`](../gateway/)** in this repo (Node, `src
 ```bash
 export ELTPULSE_AGENT_TOKEN="…"
 export ELTPULSE_CONTROL_PLANE_URL="https://app.eltpulse.dev"
+export ELTPULSE_EXECUTE_RUNS=1
 node src/index.mjs
 ```
+
+The `local` runner (subprocess inside the gateway process) is used automatically — no extra configuration needed.
 
 Use the **same** environment variables as Docker so the control plane authenticates the same way.
 
