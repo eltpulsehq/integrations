@@ -9,3 +9,14 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      # Use the docker executor — each run spins up a new container via the
+      # Docker socket. Remove this block to fall back to the local executor
+      # (subprocess inside the gateway container, which needs python3 + sling).
+      ELTPULSE_EXECUTOR: docker
+      ELTPULSE_EXECUTE_RUNS: "1"
+      ELTPULSE_WORKER_IMAGE: ghcr.io/eltpulsehq/gateway-worker:latest
+    volumes:
+      # Mount the Docker socket so the gateway can launch worker containers.
+      # For the local executor, remove this volume and the environment block above.
+      - /var/run/docker.sock:/var/run/docker.sock:ro

@@ -1,5 +1,5 @@
-# Build integrations/gateway and push ghcr.io/eltpulsehq/gateway:latest
-name: Publish gateway image to GHCR
+# Build gateway + worker images and push to GHCR
+name: Publish gateway images to GHCR
 
 on:
   push:
@@ -18,6 +18,16 @@ concurrency:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: gateway
+            context: ./gateway
+            image: ghcr.io/${{ github.repository_owner }}/gateway
+          - name: gateway-worker
+            context: ./worker
+            image: ghcr.io/${{ github.repository_owner }}/gateway-worker
+
     steps:
       - uses: actions/checkout@v4
 
@@ -29,24 +39,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker metadata
+      - name: Docker metadata (${{ matrix.name }})
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/gateway
+          images: ${{ matrix.image }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,prefix=sha-
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
-      - name: Build and push
+      - name: Build and push (${{ matrix.name }})
         uses: docker/build-push-action@v6
         with:
-          context: ./gateway
-          file: ./gateway/Dockerfile
+          context: ${{ matrix.context }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}

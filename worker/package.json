@@ -1,0 +1,10 @@
+{
+  "name": "eltpulse-gateway-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "eltPulse pipeline worker — short-lived container that executes one pipeline run and exits.",
+  "engines": {
+    "node": ">=20"
+  }
+}

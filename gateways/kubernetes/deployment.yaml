@@ -1,4 +1,45 @@
-# eltPulse gateway — single replica. Replace Secret values via Sealed Secrets / ESO in production.
+# eltPulse gateway — Kubernetes deployment with job-based execution.
+#
+# Each pipeline run launches an independent batch/v1 Job (one pod per run).
+# The gateway pod needs permission to create/delete Jobs in its namespace.
+#
+# Replace Secret values via Sealed Secrets / ESO in production.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eltpulse-gateway
+  labels:
+    app.kubernetes.io/name: eltpulse-gateway
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eltpulse-gateway-jobs
+  labels:
+    app.kubernetes.io/name: eltpulse-gateway
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eltpulse-gateway-jobs
+  labels:
+    app.kubernetes.io/name: eltpulse-gateway
+subjects:
+  - kind: ServiceAccount
+    name: eltpulse-gateway
+roleRef:
+  kind: Role
+  apiGroup: rbac.authorization.k8s.io
+  name: eltpulse-gateway-jobs
+---
 apiVersion: v1
 kind: Secret
 metadata:
@@ -26,6 +67,8 @@ spec:
       labels:
         app.kubernetes.io/name: eltpulse-gateway
     spec:
+      serviceAccountName: eltpulse-gateway
+      terminationGracePeriodSeconds: 35  # > ELTPULSE_DRAIN_TIMEOUT_MS (30s)
       containers:
         - name: gateway
           image: ghcr.io/eltpulsehq/gateway:latest
@@ -33,10 +76,19 @@ spec:
           envFrom:
             - secretRef:
                 name: eltpulse-gateway-env
+          env:
+            - name: ELTPULSE_EXECUTOR
+              value: "kubernetes"
+            - name: ELTPULSE_EXECUTE_RUNS
+              value: "1"
+            - name: ELTPULSE_WORKER_IMAGE
+              value: "ghcr.io/eltpulsehq/gateway-worker:latest"
+            # Namespace is read automatically from the service account mount.
+            # Override with ELTPULSE_K8S_NAMESPACE if deploying jobs elsewhere.
           resources:
             requests:
-              cpu: 100m
-              memory: 128Mi
+              cpu: 50m
+              memory: 64Mi
             limits:
-              cpu: "1"
-              memory: 512Mi
+              cpu: 500m
+              memory: 256Mi
