@@ -2,7 +2,7 @@
  * ECS executor — runs one Fargate task per pipeline run via the ECS RunTask API.
  * Uses AWS Signature V4 signing — no AWS SDK dependency, just fetch + crypto.
  *
- * ELTPULSE_EXECUTOR=ecs
+ * ELTPULSE_RUNNER=ecs
  *
  * Required env:
  *   ELTPULSE_WORKER_IMAGE         Worker image URI (e.g. ghcr.io/eltpulsehq/gateway-worker:latest

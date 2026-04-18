@@ -2,7 +2,7 @@
  * Local executor — runs the pipeline as a subprocess inside the gateway process.
  * Used for laptop/dev deployments where spinning up new compute isn't needed.
  *
- * ELTPULSE_EXECUTOR=local (or unset — this is the default)
+ * ELTPULSE_RUNNER=local (or unset — this is the default)
  */
 
 import { spawn }                    from "node:child_process";

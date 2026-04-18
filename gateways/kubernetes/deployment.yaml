@@ -77,7 +77,7 @@ spec:
             - secretRef:
                 name: eltpulse-gateway-env
           env:
-            - name: ELTPULSE_EXECUTOR
+            - name: ELTPULSE_RUNNER
               value: "kubernetes"
             - name: ELTPULSE_EXECUTE_RUNS
               value: "1"

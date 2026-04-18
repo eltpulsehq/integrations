@@ -3,7 +3,7 @@
  * in-cluster service account. The Job runs the worker image, patches back
  * logs/status itself, then exits and is cleaned up automatically (TTL).
  *
- * ELTPULSE_EXECUTOR=kubernetes
+ * ELTPULSE_RUNNER=kubernetes
  *
  * Required env (usually from Downward API or pod spec):
  *   ELTPULSE_WORKER_IMAGE        Worker image (default: ghcr.io/eltpulsehq/gateway-worker:latest)

@@ -10,7 +10,7 @@
  *   ELTPULSE_CONTROL_PLANE_URL    e.g. https://app.eltpulse.dev
  *
  * Env (optional):
- *   ELTPULSE_EXECUTOR             local | docker | kubernetes | ecs  (default: local)
+ *   ELTPULSE_RUNNER             local | docker | kubernetes | ecs  (default: local)
  *   ELTPULSE_EXECUTE_RUNS         Set to "1" to enable run execution. Default off so
  *                                 connecting to prod never mutates runs by accident.
  *   ELTPULSE_MAX_CONCURRENT_RUNS  Max runs in-flight per replica (default: 4).
@@ -31,7 +31,7 @@
 
 const baseUrl     = (process.env.ELTPULSE_CONTROL_PLANE_URL || "").replace(/\/$/, "");
 const token       = process.env.ELTPULSE_AGENT_TOKEN || "";
-const executorKey = (process.env.ELTPULSE_EXECUTOR || "local").toLowerCase();
+const runnerKey = (process.env.ELTPULSE_RUNNER || "local").toLowerCase();
 const executeRuns = ["1", "true", "yes"].includes(String(process.env.ELTPULSE_EXECUTE_RUNS || "").toLowerCase());
 const MAX_CONCURRENT_RUNS = Math.max(1, Number(process.env.ELTPULSE_MAX_CONCURRENT_RUNS ?? 4) || 4);
 const DRAIN_TIMEOUT_MS    = Math.max(5000, Number(process.env.ELTPULSE_DRAIN_TIMEOUT_MS ?? 30000) || 30000);
@@ -44,14 +44,14 @@ if (!baseUrl || !token) {
 // ── Load executor ──────────────────────────────────────────────────────────────
 
 const EXECUTORS = { local: true, docker: true, kubernetes: true, ecs: true };
-if (!EXECUTORS[executorKey]) {
-  console.error(`Unknown ELTPULSE_EXECUTOR="${executorKey}". Valid values: local, docker, kubernetes, ecs`);
+if (!EXECUTORS[runnerKey]) {
+  console.error(`Unknown ELTPULSE_RUNNER="${runnerKey}". Valid values: local, docker, kubernetes, ecs`);
   process.exit(1);
 }
 
 // Dynamic import so unused executors don't need their deps available at startup
-const { executeRun } = await import(`./executors/${executorKey}.mjs`);
-console.log(`[eltpulse-gateway] executor=${executorKey}`);
+const { executeRun } = await import(`./executors/${runnerKey}.mjs`);
+console.log(`[eltpulse-gateway] runner=${runnerKey}`);
 
 // ── HTTP helper ────────────────────────────────────────────────────────────────
 
@@ -86,7 +86,7 @@ async function refreshManifest() {
   const runsPoll = Math.max(3,  Math.min(120, Number(billing.runsPollIntervalSeconds) || 5));
   const heartbeat = Math.max(5, Math.min(300, Number(billing.heartbeatIntervalSeconds) || 30));
   intervals = { runsPoll, heartbeat };
-  console.log(`[eltpulse-gateway] manifest v${m.version} runsPoll=${runsPoll}s heartbeat=${heartbeat}s executor=${executorKey} executeRuns=${executeRuns}`);
+  console.log(`[eltpulse-gateway] manifest v${m.version} runsPoll=${runsPoll}s heartbeat=${heartbeat}s runner=${runnerKey} executeRuns=${executeRuns}`);
   return m;
 }
 
@@ -95,7 +95,7 @@ async function sendHeartbeat() {
     method: "POST",
     json: {
       version: "eltpulse-gateway/0.3.0",
-      labels: { runtime: "node", executor: executorKey, package: "integrations/gateway" },
+      labels: { runtime: "node", executor: runnerKey, package: "integrations/gateway" },
     },
   });
 }
@@ -158,7 +158,7 @@ async function pollRunsOnce() {
         method: "PATCH",
         json: {
           status: "running",
-          appendLog: { level: "info", message: `eltpulse-gateway: claimed by executor=${executorKey}` },
+          appendLog: { level: "info", message: `eltpulse-gateway: claimed by runner=${runnerKey}` },
         },
       });
     } catch (err) {

@@ -1,141 +1,142 @@
 # eltPulse integrations
 
-Everything in this repo is **for customers**: the **gateway** source, runnable deployment manifests, and CI examples.
-
-**Gateway source:** [`gateway/`](gateway/) (Node — polls manifest/runs, heartbeats; optional stub run completion for demos).
-
-**Container image:** **`ghcr.io/eltpulsehq/gateway:latest`** — built from `gateway/Dockerfile` by **[`.github/workflows/publish-ghcr.yml`](.github/workflows/publish-ghcr.yml)** on pushes to `main`. GHCR package name is **`gateway`** under org **`eltpulsehq`**.
-
-**Deployments:** [`gateways/`](gateways/) — Docker Compose, Kubernetes, ECS, Terraform.
+Everything in this repo is **for customers**: the gateway source, worker image, deployment manifests, and CI examples.
 
 ---
 
-## Gateways (start here)
+## How it works
+
+eltPulse runs your pipelines through two components you deploy:
+
+```
+eltPulse app                  Your infrastructure
+─────────────────             ──────────────────────────────────────────
+                              ┌─────────────────────────────────────┐
+Runs page                     │  Gateway (always-on, lightweight)    │
+  │ user triggers run         │                                     │
+  │ status → pending  ──────▶ │  polls /api/agent/runs              │
+                              │  claims run atomically              │
+                              │  launches worker ──────────────────▶│
+                              │  polls for cancel                   │
+                              └─────────────────────────────────────┘
+                                                                     │
+                                             ┌───────────────────────┘
+                                             ▼
+                              ┌─────────────────────────────────────┐
+                              │  Worker (one per run, then exits)    │
+                              │                                     │
+                              │  runs python3 pipeline.py           │
+                              │      or sling run --replication ... │
+                              │                                     │
+                              │  PATCHes logs + status directly ───▶│ eltPulse app
+                              └─────────────────────────────────────┘
+```
+
+**The worker talks directly to eltPulse** — it does not relay logs through the gateway. The gateway is purely a scheduler: poll, claim, launch, watch for cancel.
+
+---
+
+## Components
+
+| Directory | Purpose |
+|-----------|---------|
+| [`gateway/`](gateway/) | Always-on polling process. Lightweight — no pipeline runtimes needed. |
+| [`worker/`](worker/) | Short-lived execution container. Includes Python 3, dlt, and sling. |
+| [`gateways/`](gateways/) | Deployment manifests (Docker Compose, Kubernetes, ECS, Terraform). |
+| [`ci/`](ci/) | CI/CD example workflows. |
+
+---
+
+## Runners
+
+The gateway supports four runners, set via `ELTPULSE_RUNNER`:
+
+| `ELTPULSE_RUNNER` | Worker launched as | Best for |
+|-------------------|--------------------|---------|
+| `local` (default) | Subprocess in gateway process | Laptop / dev |
+| `docker` | `docker run` via Docker socket | Single VM |
+| `kubernetes` | `batch/v1 Job` | Kubernetes — scales to zero |
+| `ecs` | `RunTask` on Fargate | AWS — serverless |
+
+For `docker`, `kubernetes`, and `ecs` the gateway launches `ghcr.io/eltpulsehq/gateway-worker` as a new container/pod/task for each run. The gateway image itself stays small — it's just a Node 20 polling loop.
+
+---
+
+## Getting started
+
+### 1. Get your token
+
+Go to your eltPulse app → **Gateway** → create a named gateway token.
+
+### 2. Choose a deployment
 
 | Target | Path |
 |--------|------|
-| **Local gateway (laptop / dev)** | [`gateways/local`](gateways/local) → Docker [`gateways/docker`](gateways/docker) or run [`gateway/`](gateway/) with Node |
-| **Docker Compose / single host** | [`gateways/docker`](gateways/docker) |
-| **Kubernetes** | [`gateways/kubernetes`](gateways/kubernetes) |
-| **AWS ECS (Fargate) — JSON task definition** | [`gateways/ecs`](gateways/ecs) |
-| **AWS ECS — Terraform module** | [`gateways/terraform-ecs`](gateways/terraform-ecs) |
+| Local (laptop / dev) | [`gateways/local`](gateways/local) |
+| Docker Compose | [`gateways/docker`](gateways/docker) |
+| Kubernetes | [`gateways/kubernetes`](gateways/kubernetes) |
+| AWS ECS (Fargate) — JSON task def | [`gateways/ecs`](gateways/ecs) |
+| AWS ECS — Terraform | [`gateways/terraform-ecs`](gateways/terraform-ecs) |
 
-All paths assume **outbound HTTPS only** to your eltPulse app (`ELTPULSE_CONTROL_PLANE_URL`). No inbound rules from eltPulse to your network.
+All deployments require only **outbound HTTPS** from your network to `ELTPULSE_CONTROL_PLANE_URL`. No inbound connections from eltPulse to your infrastructure.
 
-### Control plane HTTP API (paths unchanged)
+### 3. Enable execution
 
-The gateway uses Bearer auth against:
-
-| Route | Purpose |
-|-------|---------|
-| `GET /api/agent/manifest` | Poll intervals and workload snapshot |
-| `GET /api/agent/runs` | Pending runs |
-| `GET /api/agent/runs/:id` | Single run status — check `cancel: true` before or during execution |
-| `GET /api/agent/connections` | Connection secrets |
-| `POST /api/agent/heartbeat` | Liveness |
-| `PATCH /api/agent/runs/:id` | Run progress — response includes `cancel: true` if user cancelled server-side |
-
-### Cancel protocol
-
-When a user clicks **Cancel** in the eltPulse UI, the run's status is set to `cancelled` on the control plane. The gateway detects this at two points:
-
-1. **Before execution** — `GET /api/agent/runs/:id` is called before claiming a pending run. If `cancel: true`, the run is skipped entirely.
-2. **During execution** — every `PATCH /api/agent/runs/:id` response includes `cancel: true` when the run has been cancelled. Real workload implementations should terminate their subprocess and stop sending further updates when they receive this flag.
-
-### Required environment
-
-| Variable | Meaning |
-|----------|---------|
-| `ELTPULSE_AGENT_TOKEN` | Bearer secret from the eltPulse app (**Gateway** page — named connector). |
-| `ELTPULSE_CONTROL_PLANE_URL` | Origin of the app, e.g. `https://app.eltpulse.dev` |
-
-### Optional environment
-
-| Variable | Default | Meaning |
-|----------|---------|---------|
-| `ELTPULSE_EXECUTE_RUNS` | `""` (off) | Set to `1` to enable actual run execution. Off by default so the gateway never mutates runs when first connected. |
-| `ELTPULSE_WORK_DIR` | `/tmp/eltpulse` | Directory for temporary pipeline files written before each run. |
-| `ELTPULSE_LOG_BATCH_LINES` | `20` | Number of output lines to buffer before flushing a progress PATCH. |
-| `ELTPULSE_LOG_BATCH_MS` | `3000` | Max milliseconds to hold a log batch before flushing, regardless of line count. |
-| `ELTPULSE_MAX_CONCURRENT_RUNS` | `4` | Max runs executing simultaneously per replica. Scale out with more replicas rather than raising this high. |
-| `ELTPULSE_DRAIN_TIMEOUT_MS` | `30000` | How long (ms) to wait for in-flight runs to finish after SIGTERM before force-exiting. |
-
-### Scaling out (multiple replicas)
-
-The gateway is stateless — you can run as many replicas as you need. The control plane uses an **atomic claim** (`updateMany` with a `status=pending` guard) so two replicas racing to claim the same run produce exactly one winner; the other gets a 409 and skips that run. No distributed lock or coordinator needed.
-
-**Recommended approach:**
-
-| Scenario | Configuration |
-|----------|--------------|
-| Low volume | 1 replica, `ELTPULSE_MAX_CONCURRENT_RUNS=4` |
-| Medium volume | 2–4 replicas, default concurrency |
-| High volume / burst | HPA on CPU/memory, or KEDA scaled on pending run count |
-| Resiliency only | 2 replicas in different AZs, default concurrency |
-
-**Kubernetes HPA example** (scale on CPU):
-```yaml
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: eltpulse-gateway
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: eltpulse-gateway
-  minReplicas: 1
-  maxReplicas: 20
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 60
-```
-
-**Graceful shutdown:** Kubernetes sends `SIGTERM` before replacing a pod. The gateway stops claiming new runs and waits up to `ELTPULSE_DRAIN_TIMEOUT_MS` for in-flight executions to finish before exiting, so runs are never left stuck in `running` status during a rolling deploy or scale-down.
-
-### How run execution works
-
-When `ELTPULSE_EXECUTE_RUNS=1` the gateway:
-
-1. **Polls** `GET /api/agent/runs?status=pending` on the interval from the manifest.
-2. **Checks cancel** via `GET /api/agent/runs/:id` — skips runs cancelled before execution starts.
-3. **Claims** the run with `PATCH status=running`.
-4. **Fetches connection secrets** from `GET /api/agent/connections` and builds an env map.
-5. **Writes pipeline files** to a temp directory:
-   - `sling` pipelines → writes `replication.yaml`, runs `sling run --replication replication.yaml`
-   - `dlt` pipelines → writes `pipeline.py`, runs `python3 pipeline.py`
-6. **Streams stdout/stderr** back as batched `PATCH appendLog` calls while the process runs.
-7. **Checks `cancel: true`** on every PATCH response — sends `SIGTERM` (then `SIGKILL` after 5 s) to the subprocess if set.
-8. **Finalises** the run with `status=succeeded` or `status=failed` based on exit code.
-9. **Cleans up** the temp directory.
-
-Connection secrets stored in **Connections** are injected as environment variables automatically — the pipeline code reads them by name (e.g. `GITHUB_TOKEN`, `SNOWFLAKE_ACCOUNT`).
+Set `ELTPULSE_EXECUTE_RUNS=1`. By default the gateway connects and heartbeats but does **not** execute runs — this lets you verify connectivity before enabling.
 
 ---
 
-## GHCR publish (GitHub)
+## Control plane API
 
-1. **Settings → Actions → General → Workflow permissions → Read and write**.
-2. Merge to **`main`** or run **Actions → Publish gateway image to GHCR** manually. First run creates **`ghcr.io/eltpulsehq/gateway`**.
-3. Set the package to **Public** if you want unauthenticated `docker pull`.
+The gateway and worker use Bearer auth (`ELTPULSE_AGENT_TOKEN`) against these routes:
 
-Verify:
+| Route | Used by | Purpose |
+|-------|---------|---------|
+| `GET /api/agent/manifest` | Gateway | Poll intervals and workload snapshot |
+| `GET /api/agent/runs` | Gateway | Pending runs to claim |
+| `GET /api/agent/runs/:id` | Gateway + Worker | Check run status / cancel signal |
+| `PATCH /api/agent/runs/:id` | Gateway + Worker | Claim run, report progress, set final status |
+| `GET /api/agent/connections` | Gateway | Decrypted connection secrets to inject into worker |
+| `POST /api/agent/heartbeat` | Gateway | Liveness signal |
 
-```bash
-docker pull ghcr.io/eltpulsehq/gateway:latest
-```
+`PATCH /api/agent/runs/:id` returns `{ cancel: true }` when the run has been cancelled by the user. Both the gateway and worker check this flag and abort execution immediately.
 
 ---
 
-## CI examples
+## Cancel protocol
 
-| Path | Purpose |
-|------|---------|
-| [`ci/github-actions`](ci/github-actions) | Example: control-plane smoke with repo secrets. |
+When a user clicks **Cancel** in the eltPulse UI the run's DB status is set to `cancelled`. The gateway detects this before and during execution:
+
+1. `GET /api/agent/runs/:id` before claiming → `cancel: true` → skip the run
+2. Gateway polls `GET /api/agent/runs/:id` while the worker is running → `cancel: true` → stop the worker (stop container / delete Job / StopTask)
+3. Worker checks `cancel: true` on every log PATCH it sends → self-terminates
+
+---
+
+## Scaling
+
+The gateway is stateless — run as many replicas as you need. The control plane uses an **atomic claim** (`updateMany WHERE status='pending'`) so two replicas racing to claim the same run produce exactly one winner; the other gets a 409 and skips it.
+
+`ELTPULSE_MAX_CONCURRENT_RUNS` (default 4) caps how many jobs this replica launches simultaneously. Scale horizontally by adding replicas rather than raising this number. See [`gateway/README.md`](gateway/README.md) for Kubernetes HPA and KEDA examples.
+
+---
+
+## Container images
+
+Both images are built and pushed to GHCR on every push to `main`:
+
+| Image | Contents |
+|-------|----------|
+| `ghcr.io/eltpulsehq/gateway:latest` | Node 20 only (~80 MB) |
+| `ghcr.io/eltpulsehq/gateway-worker:latest` | Node 20 + Python 3 + dlt + sling (~800 MB) |
+
+---
+
+## GHCR publish setup
+
+1. **Settings → Actions → General → Workflow permissions → Read and write**
+2. Merge to `main` or run **Actions → Publish gateway images to GHCR** manually
+3. Set both packages to **Public** for unauthenticated `docker pull`
 
 ---
 

@@ -13,7 +13,7 @@ services:
       # Use the docker executor — each run spins up a new container via the
       # Docker socket. Remove this block to fall back to the local executor
       # (subprocess inside the gateway container, which needs python3 + sling).
-      ELTPULSE_EXECUTOR: docker
+      ELTPULSE_RUNNER: docker
       ELTPULSE_EXECUTE_RUNS: "1"
       ELTPULSE_WORKER_IMAGE: ghcr.io/eltpulsehq/gateway-worker:latest
     volumes:

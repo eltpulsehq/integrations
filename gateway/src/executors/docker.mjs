@@ -2,7 +2,7 @@
  * Docker executor — launches one `docker run` container per pipeline run via
  * the Docker socket HTTP API. No Docker CLI required on PATH.
  *
- * ELTPULSE_EXECUTOR=docker
+ * ELTPULSE_RUNNER=docker
  *
  * Required env:
  *   ELTPULSE_WORKER_IMAGE   Worker image to run (default: ghcr.io/eltpulsehq/gateway-worker:latest)
