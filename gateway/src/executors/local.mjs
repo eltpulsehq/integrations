@@ -5,10 +5,11 @@
  * ELTPULSE_RUNNER=local (or unset — this is the default)
  */
 
-import { spawn }                    from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtemp, writeFile, mkdir, rm } from "node:fs/promises";
-import { join }                     from "node:path";
-import { tmpdir }                   from "node:os";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { createRunTelemetry } from "#lib/run-telemetry.mjs";
 
 const workDir        = process.env.ELTPULSE_WORK_DIR     || join(tmpdir(), "eltpulse");
 const LOG_BATCH_LINES = Math.max(1,   Number(process.env.ELTPULSE_LOG_BATCH_LINES ?? 20)  || 20);
@@ -70,6 +71,7 @@ export async function executeRun(run, connEnv, api) {
     }
 
     console.log(`[local] run=${id} tool=${tool} cmd=${cmd} ${args.join(" ")}`);
+    const telemetry = createRunTelemetry(id, api);
     const proc = spawn(cmd, args, { cwd: tmpDir, env, stdio: ["ignore", "pipe", "pipe"] });
 
     let cancelled  = false;
@@ -81,9 +83,10 @@ export async function executeRun(run, connEnv, api) {
       if (logBuffer.length === 0 && !finalStatus) return;
       const lines = logBuffer.splice(0);
       try {
-        const payload = {};
-        if (lines.length)  payload.appendLog = { level: "info", message: lines.join("\n") };
-        if (finalStatus)   payload.status    = finalStatus;
+        let payload = {};
+        if (lines.length) payload.appendLog = { level: "info", message: lines.join("\n") };
+        if (finalStatus) payload.status = finalStatus;
+        payload = telemetry.enrichPayload(payload);
         const resp = await api(`/api/agent/runs/${id}`, { method: "PATCH", json: payload });
         if (resp.cancel && !cancelled) {
           cancelled = true;
@@ -102,6 +105,7 @@ export async function executeRun(run, connEnv, api) {
 
     const onLine = (line) => {
       process.stdout.write(`[run:${id}] ${line}\n`);
+      telemetry.onLogLine(line);
       logBuffer.push(line);
       if (logBuffer.length >= LOG_BATCH_LINES) flushLogs().catch(() => {});
       else scheduledFlush();
@@ -138,6 +142,7 @@ export async function executeRun(run, connEnv, api) {
       }).catch(() => {});
     }
     console.log(`[local] run=${id} status=${finalStatus} exitCode=${exitCode}`);
+    telemetry.stop();
   } finally {
     await cleanup();
   }

@@ -182,3 +182,14 @@ By default (`ELTPULSE_EXECUTE_RUNS` unset) the gateway connects and heartbeats b
 | `ghcr.io/eltpulsehq/gateway-worker:latest` | Node 20 + Python 3 + dlt + sling | ~800 MB |
 
 Both are built and pushed to GHCR automatically on every push to `main` via [`.github/workflows/publish-ghcr.yml`](../.github/workflows/publish-ghcr.yml).
+
+---
+
+## Run telemetry
+
+Workers and the **local** executor sample CPU/RAM and parse `[eltpulse]` log markers into `telemetrySummary` / `appendTelemetrySample` on each PATCH. See [`../lib/`](../lib/) and [`../README.md`](../README.md#run-telemetry).
+
+| Env | Default | Description |
+|-----|---------|-------------|
+| `ELTPULSE_SYSTEM_METRICS` | on | Set `0` to disable |
+| `ELTPULSE_SYSTEM_METRICS_INTERVAL_MS` | `20000` | Sample interval |

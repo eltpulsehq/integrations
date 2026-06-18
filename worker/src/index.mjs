@@ -19,6 +19,8 @@
  *   ELTPULSE_WORK_DIR            temp file directory (default: /tmp/eltpulse)
  *   ELTPULSE_LOG_BATCH_LINES     lines to buffer before flushing (default: 20)
  *   ELTPULSE_LOG_BATCH_MS        max ms before flushing (default: 3000)
+ *   ELTPULSE_SYSTEM_METRICS      CPU/RAM telemetry (default on; set 0 to disable)
+ *   ELTPULSE_SYSTEM_METRICS_INTERVAL_MS  sample interval (default 20000)
  *
  * All connection secret env vars (GITHUB_TOKEN, SNOWFLAKE_ACCOUNT, etc.) are
  * passed through directly — the gateway executor layers them in from
@@ -29,6 +31,7 @@ import { spawn } from "node:child_process";
 import { mkdtemp, writeFile, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { createRunTelemetry } from "#lib/run-telemetry.mjs";
 
 const baseUrl = (process.env.ELTPULSE_CONTROL_PLANE_URL || "").replace(/\/$/, "");
 const token   = process.env.ELTPULSE_AGENT_TOKEN || "";
@@ -140,6 +143,8 @@ async function main() {
 
   console.log(`[eltpulse-worker] run=${runId} tool=${tool} cmd=${cmd} ${args.join(" ")}`);
 
+  const telemetry = createRunTelemetry(runId, api);
+
   // ── Spawn ────────────────────────────────────────────────────────────────────
   const proc = spawn(cmd, args, { cwd: tmpDir, env, stdio: ["ignore", "pipe", "pipe"] });
 
@@ -152,9 +157,10 @@ async function main() {
     if (logBuffer.length === 0 && !finalStatus) return;
     const lines = logBuffer.splice(0);
     try {
-      const payload = {};
+      let payload = {};
       if (lines.length > 0) payload.appendLog = { level: "info", message: lines.join("\n") };
-      if (finalStatus)       payload.status    = finalStatus;
+      if (finalStatus) payload.status = finalStatus;
+      payload = telemetry.enrichPayload(payload);
       const resp = await api(`/api/agent/runs/${runId}`, { method: "PATCH", json: payload });
       if (resp.cancel && !cancelled) {
         cancelled = true;
@@ -174,6 +180,7 @@ async function main() {
 
   const onLine = (line) => {
     process.stdout.write(`${line}\n`);
+    telemetry.onLogLine(line);
     logBuffer.push(line);
     if (logBuffer.length >= LOG_BATCH_LINES) flushLogs().catch(() => {});
     else scheduledFlush();
@@ -212,6 +219,7 @@ async function main() {
   }
 
   console.log(`[eltpulse-worker] finished status=${finalStatus} exitCode=${exitCode}`);
+  telemetry.stop();
   await cleanup();
   process.exit(exitCode === 0 || cancelled ? 0 : 1);
 }

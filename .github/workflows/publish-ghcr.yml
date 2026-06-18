@@ -5,6 +5,11 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    paths:
+      - "gateway/**"
+      - "worker/**"
+      - "lib/**"
+      - ".github/workflows/publish-ghcr.yml"
   workflow_dispatch:
 
 permissions:
@@ -22,10 +27,10 @@ jobs:
       matrix:
         include:
           - name: gateway
-            context: ./gateway
+            dockerfile: ./gateway/Dockerfile
             image: ghcr.io/${{ github.repository_owner }}/gateway
           - name: gateway-worker
-            context: ./worker
+            dockerfile: ./worker/Dockerfile
             image: ghcr.io/${{ github.repository_owner }}/gateway-worker
 
     steps:
@@ -53,7 +58,8 @@ jobs:
       - name: Build and push (${{ matrix.name }})
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
+          context: .
+          file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

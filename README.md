@@ -140,6 +140,28 @@ Both images are built and pushed to GHCR on every push to `main`:
 
 ---
 
+## Run telemetry
+
+Workers PATCH the same telemetry fields as the app API (`PATCH /api/agent/runs/:id`):
+
+| Field | Source |
+|-------|--------|
+| `appendLog` | Buffered stdout/stderr |
+| `telemetrySummary` / `appendTelemetrySample` | Parsed from `[eltpulse] phase:` / `resource:` markers in pipeline logs |
+| `telemetrySummary.system` | Optional CPU/RAM on the worker process (default on) |
+
+Env: `ELTPULSE_SYSTEM_METRICS=0` to disable; `ELTPULSE_SYSTEM_METRICS_INTERVAL_MS` (default 20000).
+
+Shared code: [`lib/`](lib/) — keep in sync with `web/lib/elt/` in the datapulse monorepo.
+
+---
+
+## Monorepo mirror
+
+Also vendored at `integrations/` in [datapulse](https://github.com/eltpulsehq/datapulse). See [`MONOREPO.md`](MONOREPO.md) for publishing back to this repo.
+
+---
+
 ## License
 
 MIT — see [`LICENSE`](LICENSE).
