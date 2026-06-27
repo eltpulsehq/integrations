@@ -125,10 +125,12 @@ async function main() {
     args = [scriptPath];
   }
 
-  // ── Build env ────────────────────────────────────────────────────────────────
-  // Process env already has connection secrets injected by the gateway executor.
+  // Process env already has connection secrets + ELTPULSE_* from the gateway executor.
   const env = {
     ...process.env,
+    ELTPULSE_RUN_ID: runId,
+    ELTPULSE_CONTROL_PLANE_URL: baseUrl,
+    ELTPULSE_AGENT_TOKEN: token,
     ELT_PARTITION_VALUE:  partitionValue,
     ELT_PARTITION_COLUMN: partitionColumn,
     ...(partitionValue  ? { elt_partition_value:  partitionValue  } : {}),

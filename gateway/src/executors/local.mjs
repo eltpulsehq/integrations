@@ -60,6 +60,9 @@ export async function executeRun(run, connEnv, api) {
     const env = {
       ...process.env,
       ...connEnv,
+      ELTPULSE_RUN_ID: id,
+      ELTPULSE_CONTROL_PLANE_URL: (process.env.ELTPULSE_CONTROL_PLANE_URL || "").replace(/\/$/, ""),
+      ELTPULSE_AGENT_TOKEN: process.env.ELTPULSE_AGENT_TOKEN || "",
       ELT_PARTITION_VALUE:  run.partitionValue  ?? "",
       ELT_PARTITION_COLUMN: run.partitionColumn ?? "",
       ...(run.partitionValue  ? { elt_partition_value:  run.partitionValue  } : {}),
